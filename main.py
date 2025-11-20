@@ -119,18 +119,18 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     consumo = data.electricidad_kwh or 0
 
     # Ahorros kWh
-    ahorro_1anio_kwh = int(consumo * 0.15)
-    ahorro_3anios_kwh = int(consumo * 0.15 * 3)
-    ahorro_5anios_kwh = int(consumo * 0.15 * 5)
+    ahorro_1anio_kwh = int(consumo * 0.45)
+    ahorro_3anios_kwh = int(consumo * 0.45 * 3)
+    ahorro_5anios_kwh = int(consumo * 0.45 * 5)
 
     # Conversión a euros
-    precio_kwh = 0.20
+    precio_kwh = 0.80
     ahorro_1anio_eur = int(ahorro_1anio_kwh * precio_kwh)
     ahorro_3anios_eur = int(ahorro_3anios_kwh * precio_kwh)
     ahorro_5anios_eur = int(ahorro_5anios_kwh * precio_kwh)
 
     # CO2 evitado
-    factor_co2 = 0.25
+    factor_co2 = 0.90
     co2_1anio_kg = int(ahorro_1anio_kwh * factor_co2)
     co2_3anios_kg = int(ahorro_3anios_kwh * factor_co2)
     co2_5anios_kg = int(ahorro_5anios_kwh * factor_co2)
