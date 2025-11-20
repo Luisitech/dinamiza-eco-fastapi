@@ -10,7 +10,7 @@ app = FastAPI(
 
 
 # --------------------------------------------------------------------
-# 🟦 MODELOS DE ENTRADA (COINCIDEN CON LA TABLA COMUNIDADES DE XANO)
+# MODELOS DE ENTRADA
 # --------------------------------------------------------------------
 class Comunidad(BaseModel):
     id_comunidad: Optional[int] = None
@@ -39,7 +39,7 @@ class Comunidad(BaseModel):
 
 
 # --------------------------------------------------------------------
-# 🟩 MODELO DE SALIDA PARA RECOMENDACIONES (COINCIDE CON XANO)
+# MODELO SALIDA
 # --------------------------------------------------------------------
 class RecomendacionSalida(BaseModel):
     recomendacion_final: str
@@ -70,17 +70,7 @@ class RecomendacionSalida(BaseModel):
 
 
 # --------------------------------------------------------------------
-# 🔵 MODELO SALIDA SUBVENCIONES (placeholder)
-# --------------------------------------------------------------------
-class SubvencionesSalida(BaseModel):
-    nacional: float
-    autonomica: float
-    provincial: float
-    ue_nextgen: float
-
-
-# --------------------------------------------------------------------
-# 🟢 ENDPOINT HOME
+# HOME
 # --------------------------------------------------------------------
 @app.get("/")
 def root():
@@ -88,92 +78,86 @@ def root():
 
 
 # --------------------------------------------------------------------
-# 🟧 ENDPOINT DE RECOMENDACIONES (con lógica de ejemplo)
+# ENDPOINT RECOMENDACIONES
 # --------------------------------------------------------------------
-@app.post("/recomendaciones", response_model=RecomendacionSalida)
-def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
+@app.post("/recomendaciones")
+def generar_recomendaciones(data: Comunidad):
     """
-    Recibe una comunidad completa desde Xano
-    y devuelve recomendaciones energéticas + ahorros estimados.
+    Recibe una comunidad desde Xano
+    y devuelve recomendaciones formateadas como Xano espera:
+    { "result": { ... } }
     """
 
-    # --- Reglas simples tipo DEMO (luego lo cambiamos por ML real) ---
+    # Lógica demo
     recomendacion = "Instalar fotovoltaica y mejorar sistema de calefacción."
 
-    # Mezcla energética (porcentaje simbólico)
-    mix_fotovoltaica_pct = 50
-    mix_aerotermia_pct = 25
+    mix_fotovoltaica_pct = 70
+    mix_aerotermia_pct = 30
     mix_geotermia_pct = 0
-    mix_biomasa_pct = 10
-    mix_microhidraulica_pct = 15
+    mix_biomasa_pct = 0
+    mix_microhidraulica_pct = 0
 
-    # Batería
     instalar_bateria = "sí" if str(data.bateria).lower() in ["no", "n", "0"] else "no"
     pct_ahorro_bateria = 8 if instalar_bateria == "sí" else 0
 
-    # Aerotermia según tipo de calefacción
     instalar_bomba_calor = "sí" if "caldera" in str(data.tipo_calefaccion).lower() else "no"
     pct_ahorro_bomba_calor = 18 if instalar_bomba_calor == "sí" else 0
 
-    # Consumo actual
     consumo = data.electricidad_kwh or 0
 
-    # Ahorros kWh
     ahorro_1anio_kwh = int(consumo * 0.45)
     ahorro_3anios_kwh = int(consumo * 0.45 * 3)
     ahorro_5anios_kwh = int(consumo * 0.45 * 5)
 
-    # Conversión a euros
     precio_kwh = 0.80
     ahorro_1anio_eur = int(ahorro_1anio_kwh * precio_kwh)
     ahorro_3anios_eur = int(ahorro_3anios_kwh * precio_kwh)
     ahorro_5anios_eur = int(ahorro_5anios_kwh * precio_kwh)
 
-    # CO2 evitado
     factor_co2 = 0.90
     co2_1anio_kg = int(ahorro_1anio_kwh * factor_co2)
     co2_3anios_kg = int(ahorro_3anios_kwh * factor_co2)
     co2_5anios_kg = int(ahorro_5anios_kwh * factor_co2)
 
-    return RecomendacionSalida(
-        recomendacion_final=recomendacion,
+    # 👇 FORMA EXACTA QUE XANO ESPERA
+    return {
+        "result": {
+            "recomendacion_final": recomendacion,
 
-        mix_fotovoltaica_pct=mix_fotovoltaica_pct,
-        mix_aerotermia_pct=mix_aerotermia_pct,
-        mix_geotermia_pct=mix_geotermia_pct,
-        mix_biomasa_pct=mix_biomasa_pct,
-        mix_microhidraulica_pct=mix_microhidraulica_pct,
+            "mix_fotovoltaica_pct": mix_fotovoltaica_pct,
+            "mix_aerotermia_pct": mix_aerotermia_pct,
+            "mix_geotermia_pct": mix_geotermia_pct,
+            "mix_biomasa_pct": mix_biomasa_pct,
+            "mix_microhidraulica_pct": mix_microhidraulica_pct,
 
-        instalar_bateria=instalar_bateria,
-        pct_ahorro_bateria=pct_ahorro_bateria,
+            "instalar_bateria": instalar_bateria,
+            "pct_ahorro_bateria": pct_ahorro_bateria,
 
-        instalar_bomba_calor=instalar_bomba_calor,
-        pct_ahorro_bomba_calor=pct_ahorro_bomba_calor,
+            "instalar_bomba_calor": instalar_bomba_calor,
+            "pct_ahorro_bomba_calor": pct_ahorro_bomba_calor,
 
-        ahorro_1anio_kwh=ahorro_1anio_kwh,
-        ahorro_3anios_kwh=ahorro_3anios_kwh,
-        ahorro_5anios_kwh=ahorro_5anios_kwh,
+            "ahorro_1anio_kwh": ahorro_1anio_kwh,
+            "ahorro_3anios_kwh": ahorro_3anios_kwh,
+            "ahorro_5anios_kwh": ahorro_5anios_kwh,
 
-        ahorro_1anio_eur=ahorro_1anio_eur,
-        ahorro_3anios_eur=ahorro_3anios_eur,
-        ahorro_5anios_eur=ahorro_5anios_eur,
+            "ahorro_1anio_eur": ahorro_1anio_eur,
+            "ahorro_3anios_eur": ahorro_3anios_eur,
+            "ahorro_5anios_eur": ahorro_5anios_eur,
 
-        co2_1anio_kg=co2_1anio_kg,
-        co2_3anios_kg=co2_3anios_kg,
-        co2_5anios_kg=co2_5anios_kg,
-    )
+            "co2_1anio_kg": co2_1anio_kg,
+            "co2_3anios_kg": co2_3anios_kg,
+            "co2_5anios_kg": co2_5anios_kg,
+        }
+    }
 
+
+# --------------------------------------------------------------------
+# ENDPOINT SUBVENCIONES
+# --------------------------------------------------------------------
 @app.post("/subvenciones", response_model=SubvencionesSalida)
 def estimar_subvenciones(data: Comunidad) -> SubvencionesSalida:
-    """
-    Endpoint placeholder para subvenciones.
-    De momento devuelve probabilidades fijas; luego lo podemos
-    conectar a otro modelo de IA o a reglas de negocio.
-    """
-
-    # Ejemplo tonto: variar un poco según zona climática
     factor = {"A": 1.0, "B": 0.95, "C": 0.9, "D": 0.85, "E": 0.8}.get(
-        data.zona_climatica.upper(), 0.9
+        (data.zona_climatica or "").upper(), 0.9
     )
 
     return SubvencionesSalida(
