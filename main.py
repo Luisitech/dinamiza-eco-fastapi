@@ -5,7 +5,7 @@ from typing import Optional
 app = FastAPI(
     title="Dinamiza ECO 360 - IA API",
     description="Microservicio de IA para recomendaciones energéticas y predicción de subvenciones.",
-    version="1.1.0",
+    version="1.1.1",
 )
 
 
@@ -29,7 +29,8 @@ class Comunidad(BaseModel):
     area_techo_m2: Optional[float] = None
     orientacion: Optional[str] = None
     tipo_calefaccion: Optional[str] = None
-    bateria: Optional[str] = None
+
+    bateria: Optional[bool] = None
 
     codigo_postal: Optional[int] = None
     zona_climatica: Optional[str] = None
@@ -50,10 +51,10 @@ class RecomendacionSalida(BaseModel):
     mix_biomasa_pct: int
     mix_microhidraulica_pct: int
 
-    instalar_bateria: str
+    instalar_bateria: bool
     pct_ahorro_bateria: int
 
-    instalar_bomba_calor: str
+    instalar_bomba_calor: bool
     pct_ahorro_bomba_calor: int
 
     ahorro_1anio_kwh: int
@@ -92,17 +93,10 @@ def root():
 # --------------------------------------------------------------------
 @app.post("/recomendaciones", response_model=RecomendacionSalida)
 def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
-    """
-    Recibe una comunidad completa desde Xano
-    y devuelve recomendaciones energéticas + ahorros estimados.
-    Pensado para demo: resultados claros, consistentes y “wow”.
-    """
-
     nombre = data.nombre_comunidad or "la comunidad"
     municipio = data.municipio or ""
     provincia = data.provincia or ""
 
-    # Texto de recomendación más “consultoría”
     ubicacion = f" de {municipio} ({provincia})" if municipio or provincia else ""
     recomendacion = (
         f"Para {nombre}{ubicacion}, se recomienda una solución combinada con "
@@ -111,38 +105,28 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
         "muy significativa el consumo energético y las emisiones de CO₂."
     )
 
-    # Mix energético recomendado para el pitch
     mix_fotovoltaica_pct = 70
     mix_aerotermia_pct = 30
     mix_geotermia_pct = 0
     mix_biomasa_pct = 0
     mix_microhidraulica_pct = 0
 
-    # Batería (demo sencilla)
-    instalar_bateria = "sí" if str(data.bateria).lower() in ["no", "n", "0"] else "no"
-    pct_ahorro_bateria = 8 if instalar_bateria == "sí" else 0
+    instalar_bateria = False if data.bateria is False else True
+    pct_ahorro_bateria = 8 if instalar_bateria else 0
 
-    # Aerotermia según tipo de calefacción
-    instalar_bomba_calor = (
-        "sí" if "caldera" in str(data.tipo_calefaccion or "").lower() else "no"
-    )
-    pct_ahorro_bomba_calor = 18 if instalar_bomba_calor == "sí" else 0
+    instalar_bomba_calor = "caldera" in str(data.tipo_calefaccion or "").lower()
+    pct_ahorro_bomba_calor = 18 if instalar_bomba_calor else 0
 
-    # Consumo actual (eléctrico) – base de los cálculos
     consumo = float(data.electricidad_kwh or 0.0)
 
-    # 🔥 NUEVAS REGLAS DEMO DAY
-    # Energía ahorrada: 60% del consumo anual
     ahorro_1anio_kwh = int(consumo * 0.60)
     ahorro_3anios_kwh = int(consumo * 0.60 * 3)
     ahorro_5anios_kwh = int(consumo * 0.60 * 5)
 
-    # Ahorro económico (€): 80% del ahorro energético
     ahorro_1anio_eur = int(ahorro_1anio_kwh * 0.80)
     ahorro_3anios_eur = int(ahorro_3anios_kwh * 0.80)
     ahorro_5anios_eur = int(ahorro_5anios_kwh * 0.80)
 
-    # CO₂ evitado (kg): 90% del ahorro energético
     co2_1anio_kg = int(ahorro_1anio_kwh * 0.90)
     co2_3anios_kg = int(ahorro_3anios_kwh * 0.90)
     co2_5anios_kg = int(ahorro_5anios_kwh * 0.90)
@@ -171,16 +155,10 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
 
 
 # --------------------------------------------------------------------
-# 🟠 ENDPOINT SUBVENCIONES (igual que antes, placeholder)
+# 🟠 ENDPOINT SUBVENCIONES
 # --------------------------------------------------------------------
 @app.post("/subvenciones", response_model=SubvencionesSalida)
 def estimar_subvenciones(data: Comunidad) -> SubvencionesSalida:
-    """
-    Endpoint placeholder para subvenciones.
-    De momento devuelve probabilidades fijas; luego lo conectamos
-    a un modelo de IA o reglas de negocio más finas.
-    """
-
     factor = {"A": 1.0, "B": 0.95, "C": 0.9, "D": 0.85, "E": 0.8}.get(
         (data.zona_climatica or "").upper(), 0.9
     )
