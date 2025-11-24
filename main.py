@@ -157,15 +157,26 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
 # --------------------------------------------------------------------
 # 🟠 ENDPOINT SUBVENCIONES
 # --------------------------------------------------------------------
-@app.post("/subvenciones", response_model=SubvencionesSalida)
-def estimar_subvenciones(data: Comunidad) -> SubvencionesSalida:
+@app.post("/subvenciones")
+def estimar_subvenciones(data: Comunidad):
+
+    # Factor climático como antes
     factor = {"A": 1.0, "B": 0.95, "C": 0.9, "D": 0.85, "E": 0.8}.get(
         (data.zona_climatica or "").upper(), 0.9
     )
 
-    return SubvencionesSalida(
-        nacional=0.72 * factor,
-        autonomica=0.64 * factor,
-        provincial=0.41 * factor,
-        ue_nextgen=0.55 * factor,
-    )
+    # Regla simple tipo demo
+    eligible_nextgen = factor >= 0.9
+    eligible_nacional = True
+    eligible_regional = factor >= 0.85
+    eligible_municipal = True if data.presupuesto and data.presupuesto < 500000 else False
+
+    return {
+        "subvenciones": {
+            "eligible_nextgen": eligible_nextgen,
+            "eligible_nacional": eligible_nacional,
+            "eligible_regional": eligible_regional,
+            "eligible_municipal": eligible_municipal,
+        }
+    }
+
