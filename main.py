@@ -12,6 +12,53 @@ app = FastAPI(
 )
 
 # --------------------------------------------------------------------
+# 🟦 MODELOS DE ENTRADA Y SALIDA
+# --------------------------------------------------------------------
+
+class Comunidad(BaseModel):
+    id_comunidad: Optional[int] = None
+    nombre_comunidad: Optional[str] = None
+    provincia: Optional[str] = None
+    municipio: Optional[str] = None
+    tipo_edificio: Optional[str] = None
+    anio_construccion: Optional[int] = None
+    num_viviendas: Optional[int] = None
+    num_pisos: Optional[int] = None
+    electricidad_kwh: Optional[float] = None
+    termica_kwh: Optional[float] = None
+    fuentes_energia: Optional[str] = None
+    area_techo_m2: Optional[float] = None
+    orientacion: Optional[str] = None
+    tipo_calefaccion: Optional[str] = None
+    bateria: Optional[bool] = None
+    codigo_postal: Optional[int] = None
+    zona_climatica: Optional[str] = None
+    gasto_mensual_energia: Optional[float] = None
+    presupuesto: Optional[float] = None
+
+
+class RecomendacionSalida(BaseModel):
+    recomendacion_final: str
+    mix_fotovoltaica_pct: int
+    mix_aerotermia_pct: int
+    mix_geotermia_pct: int
+    mix_biomasa_pct: int
+    mix_microhidraulica_pct: int
+    instalar_bateria: bool
+    pct_ahorro_bateria: int
+    instalar_bomba_calor: bool
+    pct_ahorro_bomba_calor: int
+    ahorro_1anio_kwh: int
+    ahorro_3anios_kwh: int
+    ahorro_5anios_kwh: int
+    ahorro_1anio_eur: int
+    ahorro_3anios_eur: int
+    ahorro_5anios_eur: int
+    co2_1anio_kg: int
+    co2_3anios_kg: int
+    co2_5anios_kg: int
+
+# --------------------------------------------------------------------
 # 🟠 ENDPOINT SUBVENCIONES
 # --------------------------------------------------------------------
 @app.post("/recomendaciones", response_model=RecomendacionSalida)
