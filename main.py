@@ -1,3 +1,16 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+
+# --------------------------------------------------------------------
+# 🟦 INICIALIZAR FASTAPI
+# --------------------------------------------------------------------
+app = FastAPI(
+    title="Dinamiza ECO 360 - IA API",
+    description="Microservicio de IA para recomendaciones energéticas y predicción de subvenciones.",
+    version="1.1.1",
+)
+
 # --------------------------------------------------------------------
 # 🟠 ENDPOINT SUBVENCIONES
 # --------------------------------------------------------------------
