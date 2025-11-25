@@ -125,33 +125,49 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     # Ajustar FV al máximo real permitido por cubierta
     pct_fv = min(pct_fv, fv_pct_max)
 
-    # -----------------------------
-    # 6. Geotermia, biomasa y microhidráulica
-    # -----------------------------
-    pct_geotermia = 0
-    pct_biomasa = 0
+# -----------------------------
+# 6. Geotermia, biomasa y microhidráulica (realista)
+# -----------------------------
+
+pct_geotermia = 0
+pct_biomasa = 0
+pct_micro = 0
+
+# Geotermia solo en presupuestos altos
+if presupuesto > 250000 and factor_clima <= 0.9:
+    pct_geotermia = 10
+
+# Biomasa útil solo en zonas frías
+if factor_clima <= 0.85:
+    pct_biomasa = 10
+
+# Microhidráulica: solo si hay recurso hídrico o si es instalación industrial
+micro_aplicable = False
+
+if data.tipo_edificio and data.tipo_edificio.lower() in ["industrial", "fábrica", "planta"]:
+    micro_aplicable = True
+
+if "rio" in (data.fuentes_energia or "").lower():
+    micro_aplicable = True
+
+if "canal" in (data.fuentes_energia or "").lower():
+    micro_aplicable = True
+
+if micro_aplicable:
+    pct_micro = 10
+else:
     pct_micro = 0
 
-    # Geotermia solo en presupuestos altos
-    if presupuesto > 250000 and factor_clima <= 0.9:
-        pct_geotermia = 10
+# Ajuste final: normalizar si supera 100%
+suma = pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro
 
-    # Biomasa útil solo en zonas frías
-    if factor_clima <= 0.85:
-        pct_biomasa = 10
-
-    # Ajustes finales para que sumen 100
-    suma_parcial = pct_fv + pct_aero + pct_geotermia + pct_biomasa
-    if suma_parcial < 100:
-        pct_micro = 100 - suma_parcial
-    else:
-        # Normalizar si excede
-        factor_norm = 100 / suma_parcial
-        pct_fv = int(pct_fv * factor_norm)
-        pct_aero = int(pct_aero * factor_norm)
-        pct_geotermia = int(pct_geotermia * factor_norm)
-        pct_biomasa = int(pct_biomasa * factor_norm)
-        pct_micro = 0
+if suma > 100:
+    factor = 100 / suma
+    pct_fv = int(pct_fv * factor)
+    pct_aero = int(pct_aero * factor)
+    pct_geotermia = int(pct_geotermia * factor)
+    pct_biomasa = int(pct_biomasa * factor)
+    pct_micro = int(pct_micro * factor)
 
     # -----------------------------
     # 7. Reglas para batería
