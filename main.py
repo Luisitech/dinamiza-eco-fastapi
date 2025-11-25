@@ -312,7 +312,7 @@ def estimar_subvenciones(data: Comunidad):
             "eligible_regional": eligible_regional,
             "eligible_municipal": eligible_municipal,
             "reduccion_energetica_pct": int(reduccion_estim * 100),  # 👈 CORRECTO PARA XANO
-            "probabilidad_total_subvencion_pct": score
+            "probabilidad_subvencion_pct": score
         },
         "criterios": {
             "nextgen": criterios_nextgen,
