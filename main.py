@@ -244,23 +244,106 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
 @app.post("/subvenciones")
 def estimar_subvenciones(data: Comunidad):
 
-    # Factor climático como antes
-    factor = {"A": 1.0, "B": 0.95, "C": 0.9, "D": 0.85, "E": 0.8}.get(
-        (data.zona_climatica or "").upper(), 0.9
+    # ----------------------------------------
+    # 1. Extraer variables clave
+    # ----------------------------------------
+    anio = data.anio_construccion or 0
+    ahorro_termico = data.termica_kwh or 0
+    ahorro_electrico = data.electricidad_kwh or 0
+    demanda_total = (ahorro_termico + ahorro_electrico) or 1
+    zona = (data.zona_climatica or "").upper()
+    presupuesto = float(data.presupuesto or 0)
+    viviendas = data.num_viviendas or 1
+    superficie = float(data.area_techo_m2 or 0)
+    tipo_edificio = (data.tipo_edificio or "").lower()
+
+    # ----------------------------------------
+    # 2. Criterio: reducción potencial de energía
+    # (basado en estimación de mix futuro)
+    # ----------------------------------------
+    # Suposición: el mix recomendado puede lograr un 30-55% de reducción,
+    # dependiendo del tamaño del edificio y superficie disponible.
+    if superficie > 400:
+        reduccion_estim = 0.55
+    elif superficie > 200:
+        reduccion_estim = 0.45
+    elif superficie > 100:
+        reduccion_estim = 0.35
+    else:
+        reduccion_estim = 0.30
+
+    # ----------------------------------------
+    # 3. Elegibilidad NextGEN / PREE / Rehabilitación energética
+    # ----------------------------------------
+    requisitos_nextgen = {
+        "antiguedad": anio < 2007,
+        "reduccion": reduccion_estim >= 0.30,
+        "edificio_residencial": "residencial" in tipo_edificio or "vivienda" in tipo_edificio,
+        "zona_valida": zona in ["A", "B", "C", "D", "E"],
+    }
+
+    elegible_nextgen = all(requisitos_nextgen.values())
+
+    # ----------------------------------------
+    # 4. Nacional (IDAE): mejoras energéticas renovables
+    # ----------------------------------------
+    requisitos_nacional = {
+        "renovables": True,       # FV, aerotermia y biomasa siempre cuentan
+        "reduccion": reduccion_estim >= 0.20,
+        "presupuesto_min": presupuesto >= 8000,
+    }
+
+    elegible_nacional = all(requisitos_nacional.values())
+
+    # ----------------------------------------
+    # 5. Autonómica: cada comunidad aplica variaciones,
+    #    pero se basan en 20–30% reducción y CEE inicial.
+    # ----------------------------------------
+    requisitos_autonomica = {
+        "reduccion": reduccion_estim >= 0.20,
+        "antiguedad": anio < 2013,
+        "uso_residencial": "residencial" in tipo_edificio or viviendas > 3,
+    }
+
+    elegible_autonomica = all(requisitos_autonomica.values())
+
+    # ----------------------------------------
+    # 6. Municipal (IBI, ICIO, ayudas locales)
+    # ----------------------------------------
+    requisitos_municipal = {
+        "fv_instalable": superficie > 30,
+        "presupuesto_max": presupuesto <= 500000,
+    }
+
+    elegible_municipal = all(requisitos_municipal.values())
+
+    # ----------------------------------------
+    # 7. Scoring de probabilidad total
+    # ----------------------------------------
+    score = (
+        (1 if elegible_nextgen else 0) * 40 +
+        (1 if elegible_nacional else 0) * 30 +
+        (1 if elegible_autonomica else 0) * 20 +
+        (1 if elegible_municipal else 0) * 10
     )
 
-    # Regla simple tipo demo
-    eligible_nextgen = factor >= 0.9
-    eligible_nacional = True
-    eligible_regional = factor >= 0.85
-    eligible_municipal = True if data.presupuesto and data.presupuesto < 500000 else False
-
+    # ----------------------------------------
+    # 8. Construir respuesta final
+    # ----------------------------------------
     return {
         "subvenciones": {
-            "eligible_nextgen": eligible_nextgen,
-            "eligible_nacional": eligible_nacional,
-            "eligible_regional": eligible_regional,
-            "eligible_municipal": eligible_municipal,
+            "nextgen_elegible": elegible_nextgen,
+            "nacional_elegible": elegible_nacional,
+            "autonomica_elegible": elegible_autonomica,
+            "municipal_elegible": elegible_municipal,
+            "reduccion_energetica_estimado_pct": int(reduccion_estim * 100),
+            "probabilidad_total_subvencion_pct": score,
+        },
+        "criterios": {
+            "nextgen": requisitos_nextgen,
+            "nacional": requisitos_nacional,
+            "autonomica": requisitos_autonomica,
+            "municipal": requisitos_municipal,
         }
     }
 
