@@ -81,11 +81,11 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     # 2. FACTOR CLIMÁTICO
     # -----------------------------
     factor_clima = {
-        "A": 1.0,  # muy cálido
+        "A": 1.0,
         "B": 0.95,
         "C": 0.9,
         "D": 0.85,
-        "E": 0.8,  # muy frío
+        "E": 0.8,
     }.get(zona, 0.9)
 
     # -----------------------------
@@ -100,17 +100,14 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
         factor_orient = 1.0
 
     # -----------------------------
-    # 4. Capacidad FV disponible
-    #    1 m2 ≈ 180 Wp → 0.18 kWp
+    # 4. Capacidad FV
     # -----------------------------
     capacidad_fv_kwp = superficie * 0.18
     capacidad_fv_max = capacidad_fv_kwp * factor_orient
-
-    # En comunidades grandes, FV no suele cubrir todo → limitamos el % máximo
     fv_pct_max = min(75, int((capacidad_fv_max / (total_demanda / 1000 + 1e-6)) * 100))
 
     # -----------------------------
-    # 5. Mix base según demanda térmica vs eléctrica
+    # 5. Mix FV vs Aerotermia
     # -----------------------------
     if total_demanda == 0:
         pct_fv = 60
@@ -122,62 +119,54 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
         pct_fv = int(70 * ratio_elec)
         pct_aero = int(50 * ratio_term * factor_clima)
 
-    # Ajustar FV al máximo real permitido por cubierta
     pct_fv = min(pct_fv, fv_pct_max)
 
     # -----------------------------
     # 6. Geotermia, biomasa y microhidráulica (realista)
     # -----------------------------
-
     pct_geotermia = 0
     pct_biomasa = 0
     pct_micro = 0
 
-    # Geotermia solo en presupuestos altos
+    # Geotermia
     if presupuesto > 250000 and factor_clima <= 0.9:
-    pct_geotermia = 10
+        pct_geotermia = 10
 
-    # Biomasa útil solo en zonas frías
+    # Biomasa
     if factor_clima <= 0.85:
-    pct_biomasa = 10
+        pct_biomasa = 10
 
-   # Microhidráulica: solo si hay recurso hídrico o si es instalación industrial
-   micro_aplicable = False
+    # Microhidráulica: solo si hay recurso hídrico o edificio industrial
+    micro_aplicable = False
 
-   if data.tipo_edificio and data.tipo_edificio.lower() in ["industrial", "fábrica", "planta"]:
-    micro_aplicable = True
+    if data.tipo_edificio and data.tipo_edificio.lower() in ["industrial", "fábrica", "planta"]:
+        micro_aplicable = True
 
-   if "rio" in (data.fuentes_energia or "").lower():
-    micro_aplicable = True
+    if "rio" in (data.fuentes_energia or "").lower():
+        micro_aplicable = True
 
-   if "canal" in (data.fuentes_energia or "").lower():
-    micro_aplicable = True
+    if "canal" in (data.fuentes_energia or "").lower():
+        micro_aplicable = True
 
-   if micro_aplicable:
-    pct_micro = 10
-   else:
-    pct_micro = 0
+    if micro_aplicable:
+        pct_micro = 10
+    else:
+        pct_micro = 0
 
-   # Ajuste final: normalizar si supera 100%
-   suma = pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro
-
-   if suma > 100:
-       factor = 100 / suma
-       pct_fv = int(pct_fv * factor)
-       pct_aero = int(pct_aero * factor)
-       pct_geotermia = int(pct_geotermia * factor)
-       pct_biomasa = int(pct_biomasa * factor)
-       pct_micro = int(pct_micro * factor)
+    # Normalización si supera 100%
+    suma = pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro
+    if suma > 100:
+        factor = 100 / suma
+        pct_fv = int(pct_fv * factor)
+        pct_aero = int(pct_aero * factor)
+        pct_geotermia = int(pct_geotermia * factor)
+        pct_biomasa = int(pct_biomasa * factor)
+        pct_micro = int(pct_micro * factor)
 
     # -----------------------------
-    # 7. Reglas para batería
+    # 7. Batería
     # -----------------------------
-    instalar_bateria = False
-    if data.bateria:
-        instalar_bateria = True
-    elif pct_fv >= 40:
-        instalar_bateria = True
-
+    instalar_bateria = data.bateria or pct_fv >= 40
     pct_ahorro_bateria = 8 if instalar_bateria else 0
 
     # -----------------------------
@@ -188,7 +177,7 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     pct_ahorro_bomba_calor = 18 if instalar_bomba_calor else 0
 
     # -----------------------------
-    # 9. Estimaciones de ahorros (realistas)
+    # 9. Estimaciones de ahorro
     # -----------------------------
     ahorro_pct_total = (pct_fv * 0.5 + pct_aero * 0.3 + pct_ahorro_bomba_calor * 0.1) / 100
     ahorro_1anio_kwh = int(total_demanda * ahorro_pct_total)
@@ -204,7 +193,7 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     co2_5anios_kg = co2_1anio_kg * 5
 
     # -----------------------------
-    # 10. TEXTO FINAL PERSONALIZADO
+    # 10. TEXTO FINAL
     # -----------------------------
     nombre = data.nombre_comunidad or "la comunidad"
     municipio = data.municipio or ""
