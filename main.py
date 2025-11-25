@@ -153,15 +153,29 @@ def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
     else:
         pct_micro = 0
 
-    # Normalización si supera 100%
-    suma = pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro
-    if suma > 100:
-        factor = 100 / suma
-        pct_fv = int(pct_fv * factor)
-        pct_aero = int(pct_aero * factor)
-        pct_geotermia = int(pct_geotermia * factor)
-        pct_biomasa = int(pct_biomasa * factor)
-        pct_micro = int(pct_micro * factor)
+# -----------------------------
+# NORMALIZACIÓN FINAL A 100%
+# -----------------------------
+suma = pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro
+
+if suma == 0:
+    # Caso extremo: no hay datos → default equilibrado
+    pct_fv = 50
+    pct_aero = 50
+    pct_geotermia = 0
+    pct_biomasa = 0
+    pct_micro = 0
+else:
+    factor = 100 / suma
+    pct_fv = int(pct_fv * factor)
+    pct_aero = int(pct_aero * factor)
+    pct_geotermia = int(pct_geotermia * factor)
+    pct_biomasa = int(pct_biomasa * factor)
+    pct_micro = int(pct_micro * factor)
+
+# Ajuste final para evitar que falte 1% por redondeo
+ajuste = 100 - (pct_fv + pct_aero + pct_geotermia + pct_biomasa + pct_micro)
+pct_fv += ajuste
 
     # -----------------------------
     # 7. Batería
