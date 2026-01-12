@@ -8,7 +8,7 @@ from typing import Optional
 app = FastAPI(
     title="Dinamiza ECO 360 - IA API",
     description="Microservicio de IA para recomendaciones energéticas y predicción de subvenciones.",
-    version="1.1.2",
+    version="1.1.1",
 )
 
 # --------------------------------------------------------------------
@@ -58,12 +58,11 @@ class RecomendacionSalida(BaseModel):
     co2_3anios_kg: int
     co2_5anios_kg: int
 
-
 # --------------------------------------------------------------------
-# 🟧 ENDPOINT RECOMENDACIONES (SALIDA CON result PARA XANO)
+# 🟧 ENDPOINT RECOMENDACIONES (CÁLCULO TÉCNICO)
 # --------------------------------------------------------------------
-@app.post("/recomendaciones")
-def generar_recomendaciones(data: Comunidad):
+@app.post("/recomendaciones", response_model=RecomendacionSalida)
+def generar_recomendaciones(data: Comunidad) -> RecomendacionSalida:
 
     # -----------------------------
     # 1. EXTRAER VARIABLES BASE
@@ -198,6 +197,7 @@ def generar_recomendaciones(data: Comunidad):
     nombre = data.nombre_comunidad or "la comunidad"
     municipio = data.municipio or ""
     provincia = data.provincia or ""
+
     ubicacion = f" de {municipio} ({provincia})" if municipio or provincia else ""
 
     recomendacion = (
@@ -209,9 +209,9 @@ def generar_recomendaciones(data: Comunidad):
     )
 
     # -----------------------------
-    # 12. DEVOLVER RESULTADO (con result)
+    # 12. DEVOLVER RESULTADO
     # -----------------------------
-    salida = RecomendacionSalida(
+    return RecomendacionSalida(
         recomendacion_final=recomendacion,
         mix_fotovoltaica_pct=pct_fv,
         mix_aerotermia_pct=pct_aero,
@@ -233,11 +233,8 @@ def generar_recomendaciones(data: Comunidad):
         co2_5anios_kg=co2_5anios_kg,
     )
 
-    return {"result": salida}
-
-
 # --------------------------------------------------------------------
-# 🟧 ENDPOINT SUBVENCIONES (SALIDA CON result PARA XANO)
+# 🟧 ENDPOINT SUBVENCIONES (REALISTA + COMPATIBLE CON XANO)
 # --------------------------------------------------------------------
 @app.post("/subvenciones")
 def estimar_subvenciones(data: Comunidad):
@@ -271,27 +268,27 @@ def estimar_subvenciones(data: Comunidad):
         "antiguedad": anio < 2007,
         "reduccion_30": reduccion_estim >= 0.30,
         "residencial": "residencial" in tipo or "vivienda" in tipo,
-        "zona_valida": zona in ["A", "B", "C", "D", "E"],
+        "zona_valida": zona in ["A","B","C","D","E"]
     }
     eligible_nextgen = all(criterios_nextgen.values())
 
     criterios_nacional = {
         "renovables": True,
         "reduccion_20": reduccion_estim >= 0.20,
-        "presupuesto_min": presupuesto >= 8000,
+        "presupuesto_min": presupuesto >= 8000
     }
     eligible_nacional = all(criterios_nacional.values())
 
     criterios_regional = {
         "reduccion_20": reduccion_estim >= 0.20,
         "antiguedad": anio < 2013,
-        "residencial": "residencial" in tipo or viviendas >= 3,
+        "residencial": "residencial" in tipo or viviendas >= 3
     }
     eligible_regional = all(criterios_regional.values())
 
     criterios_municipal = {
         "fv_instalable": superficie >= 30,
-        "presupuesto_max": presupuesto <= 500000,
+        "presupuesto_max": presupuesto <= 500000
     }
     eligible_municipal = all(criterios_municipal.values())
 
@@ -299,30 +296,28 @@ def estimar_subvenciones(data: Comunidad):
     # 4. SCORE GLOBAL REALISTA
     # ----------------------------
     score = (
-        (40 if eligible_nextgen else 0)
-        + (30 if eligible_nacional else 0)
-        + (20 if eligible_regional else 0)
-        + (10 if eligible_municipal else 0)
+        (40 if eligible_nextgen else 0) +
+        (30 if eligible_nacional else 0) +
+        (20 if eligible_regional else 0) +
+        (10 if eligible_municipal else 0)
     )
 
     # ----------------------------
-    # 5. RESPUESTA (con result)
+    # 5. RESPUESTA EXACTA PARA XANO
     # ----------------------------
     return {
-        "result": {
-            "subvenciones": {
-                "eligible_nextgen": eligible_nextgen,
-                "eligible_nacional": eligible_nacional,
-                "eligible_regional": eligible_regional,
-                "eligible_municipal": eligible_municipal,
-                "reduccion_energetica_pct": int(reduccion_estim * 100),
-                "probabilidad_subvencion_pct": score,
-            },
-            "criterios": {
-                "nextgen": criterios_nextgen,
-                "nacional": criterios_nacional,
-                "regional": criterios_regional,
-                "municipal": criterios_municipal,
-            },
+        "subvenciones": {
+            "eligible_nextgen": eligible_nextgen,
+            "eligible_nacional": eligible_nacional,
+            "eligible_regional": eligible_regional,
+            "eligible_municipal": eligible_municipal,
+            "reduccion_energetica_pct": int(reduccion_estim * 100),  # 👈 CORRECTO PARA XANO
+            "probabilidad_subvencion_pct": score
+        },
+        "criterios": {
+            "nextgen": criterios_nextgen,
+            "nacional": criterios_nacional,
+            "regional": criterios_regional,
+            "municipal": criterios_municipal
         }
     }
